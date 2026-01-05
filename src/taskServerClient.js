@@ -143,3 +143,41 @@ export async function pingTaskServer(taskServerConfig) {
     return false;
   }
 }
+
+/**
+ * Add a new script to TaskServer
+ * @param {Object} scriptConfig - Script configuration { name, path?, command?, type, schedule?, args?, env? }
+ * @param {Object} taskServerConfig - TaskServer config { url, apiKey }
+ * @returns {Promise<Object>} Result of the add operation
+ */
+export async function addScript(scriptConfig, taskServerConfig) {
+  const { url, apiKey } = taskServerConfig;
+  const endpoint = `${url}/api/add-script`;
+  
+  console.log(`➕ Adding script: ${scriptConfig.name}...`);
+  
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (apiKey) headers['X-API-Key'] = apiKey;
+    
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(scriptConfig)
+    });
+    
+    const data = await response.json();
+    
+    if (response.ok && data.success) {
+      console.log(`✅ Script '${scriptConfig.name}' added successfully`);
+      return { success: true, message: data.message };
+    } else {
+      console.error(`❌ Failed to add '${scriptConfig.name}': ${data.error || 'Unknown error'}`);
+      return { success: false, error: data.error || 'Unknown error' };
+    }
+  } catch (error) {
+    console.error(`❌ TaskServer request failed: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+}
+

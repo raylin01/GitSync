@@ -16,6 +16,7 @@ polling:
 repos:
   - name: "my-web-app"
     path: "/path/to/my-web-app"
+    repoUrl: "git@github.com:username/my-web-app.git"  # For cloning if folder is empty
     branch: "main"
     
     # Dependency management: npm, bun, yarn, pip, or none
@@ -26,6 +27,13 @@ repos:
     # Scripts to restart in TaskServer after deployment
     restartScripts:
       - "webServer"
+    
+    # Scripts to register in TaskServer on first clone (optional)
+    # These will be added to TaskServer and auto-started
+    registerScripts:
+      - name: "webServer"
+        command: "cd /path/to/my-web-app && npm start"
+        type: "forever"
     
     # TaskServer connection (optional - uses global if not set)
     # taskServer:

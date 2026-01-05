@@ -1,5 +1,89 @@
-// Git operations - pull, fetch, check for changes
+// Git operations - clone, pull, fetch, check for changes
 import simpleGit from 'simple-git';
+import { existsSync, readdirSync, mkdirSync } from 'fs';
+
+/**
+ * Check if a directory is a git repository
+ * @param {string} repoPath - Path to check
+ * @returns {boolean} True if it's a git repo
+ */
+export function isGitRepo(repoPath) {
+  return existsSync(repoPath) && existsSync(`${repoPath}/.git`);
+}
+
+/**
+ * Check if a directory is empty or doesn't exist
+ * @param {string} dirPath - Path to check
+ * @returns {boolean} True if empty or non-existent
+ */
+export function isEmptyOrMissing(dirPath) {
+  if (!existsSync(dirPath)) return true;
+  const files = readdirSync(dirPath);
+  return files.length === 0;
+}
+
+/**
+ * Clone a git repository
+ * @param {string} repoUrl - URL of the repository to clone
+ * @param {string} repoPath - Local path to clone into
+ * @param {string} branch - Branch to checkout after clone
+ * @returns {Promise<Object>} Result of the clone operation
+ */
+export async function gitClone(repoUrl, repoPath, branch = 'main') {
+  console.log(`📦 Cloning ${repoUrl} to ${repoPath}...`);
+  
+  try {
+    // Create parent directory if it doesn't exist
+    const parentDir = repoPath.substring(0, repoPath.lastIndexOf('/'));
+    if (parentDir && !existsSync(parentDir)) {
+      mkdirSync(parentDir, { recursive: true });
+    }
+    
+    const git = simpleGit();
+    await git.clone(repoUrl, repoPath, ['--branch', branch]);
+    
+    console.log(`✅ Cloned successfully to ${repoPath}`);
+    return {
+      success: true,
+      cloned: true,
+      message: `Cloned ${repoUrl} to ${repoPath}`,
+      path: repoPath
+    };
+  } catch (error) {
+    console.error(`❌ Git clone failed: ${error.message}`);
+    return {
+      success: false,
+      cloned: false,
+      message: error.message,
+      error
+    };
+  }
+}
+
+/**
+ * Ensure a repo exists - clone if missing, otherwise just return success
+ * @param {string} repoPath - Path to the repository
+ * @param {string} repoUrl - URL to clone from if missing
+ * @param {string} branch - Branch to use
+ * @returns {Promise<Object>} Result including whether clone was needed
+ */
+export async function ensureRepo(repoPath, repoUrl, branch = 'main') {
+  if (isGitRepo(repoPath)) {
+    console.log(`✓ Repository already exists at ${repoPath}`);
+    return { success: true, cloned: false, existed: true };
+  }
+  
+  if (!repoUrl) {
+    console.error(`❌ Repository not found at ${repoPath} and no repoUrl provided for cloning`);
+    return { 
+      success: false, 
+      error: 'Repository not found and no repoUrl provided for cloning' 
+    };
+  }
+  
+  // Clone the repo
+  return gitClone(repoUrl, repoPath, branch);
+}
 
 /**
  * Perform a git pull on the specified repository
@@ -100,3 +184,4 @@ export async function getCurrentCommit(repoPath) {
   const log = await git.log({ maxCount: 1 });
   return log.latest?.hash || null;
 }
+

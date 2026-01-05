@@ -70,16 +70,33 @@ webhook:
 repos:
   - name: "my-app"
     path: "/path/to/my-app"
+    repoUrl: "git@github.com:username/my-app.git"  # Clones if folder doesn't exist
     branch: "main"
     dependencies:
       type: "npm"
     restartScripts:
       - "myAppServer"
+    
+    # Auto-register scripts in TaskServer on first clone (optional)
+    registerScripts:
+      - name: "myAppServer"
+        command: "cd /path/to/my-app && npm start"
+        type: "forever"
 
 taskServer:
   url: "http://localhost:3000"
   apiKey: ""  # Optional
 ```
+
+### Auto-Clone & Setup
+
+When `repoUrl` is provided, GitSync automatically:
+1. **Clones the repo** if the folder doesn't exist or is empty
+2. **Installs dependencies** (npm/bun/yarn/pip)
+3. **Registers scripts** in TaskServer (if `registerScripts` is configured)
+4. **Starts the scripts** automatically
+
+This means you can add a new project to GitSync, push to trigger a webhook, and it will fully set itself up!
 
 ### Trigger Modes
 
