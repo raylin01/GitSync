@@ -1,0 +1,19 @@
+{
+  "name": "gitsync",
+  "version": "1.0.0",
+  "description": "Auto-deploy companion tool for TaskServer - listens for git webhooks/polls, pulls updates, installs dependencies, and triggers graceful restarts",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "bun src/index.js",
+    "dev": "bun --watch src/index.js"
+  },
+  "dependencies": {
+    "simple-git": "^3.22.0",
+    "yaml": "^2.3.4"
+  },
+  "devDependencies": {},
+  "keywords": ["git", "deploy", "webhook", "taskserver", "automation"],
+  "author": "",
+  "license": "MIT"
+}

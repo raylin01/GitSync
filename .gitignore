@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+bun.lockb
+
+# Config (contains secrets)
+config.yaml
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/

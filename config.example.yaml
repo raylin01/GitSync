@@ -1,0 +1,47 @@
+# GitSync Configuration
+
+# Trigger mode: "webhook", "polling", or "both"
+triggerMode: "webhook"
+
+# Webhook settings (used if triggerMode is webhook or both)
+webhook:
+  port: 4000
+  secret: ""  # GitHub/GitLab signature verification secret
+
+# Polling settings (used if triggerMode is polling or both)
+polling:
+  interval: 60  # seconds between checks
+
+# Repositories to watch
+repos:
+  - name: "my-web-app"
+    path: "/path/to/my-web-app"
+    branch: "main"
+    
+    # Dependency management: npm, bun, yarn, pip, or none
+    dependencies:
+      type: "npm"
+      # venv: "auto"  # For pip - creates .venv if needed
+    
+    # Scripts to restart in TaskServer after deployment
+    restartScripts:
+      - "webServer"
+    
+    # TaskServer connection (optional - uses global if not set)
+    # taskServer:
+    #   url: "http://localhost:3000"
+    #   apiKey: ""
+
+# Global TaskServer settings
+taskServer:
+  url: "http://localhost:3000"
+  apiKey: ""  # Optional API key for TaskServer auth
+
+# Notifications (optional)
+notifications:
+  slack:
+    enabled: false
+    webhookUrl: ""
+  discord:
+    enabled: false
+    webhookUrl: ""
