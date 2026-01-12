@@ -48,6 +48,16 @@ async function handleDeploy(repoConfig, triggerInfo = null) {
   return deploy(config, repoConfig, triggerInfo);
 }
 
+// Initial Startup Check
+console.log('\n' + '━'.repeat(50));
+console.log('🚀 Running startup checks...');
+
+for (const repo of config.repos) {
+  console.log(`\nChecking ${repo.name}...`);
+  // Trigger a "startup" deployment - this will ensure repo exists, pull updates, install deps, etc.
+  await handleDeploy(repo, { provider: 'startup', pusher: 'system' });
+}
+
 // Start based on trigger mode
 console.log('\n' + '━'.repeat(50));
 
