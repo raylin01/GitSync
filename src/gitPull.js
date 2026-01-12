@@ -1,6 +1,7 @@
 // Git operations - clone, pull, fetch, check for changes
 import simpleGit from 'simple-git';
 import { existsSync, readdirSync, mkdirSync } from 'fs';
+import { expandPath } from './pathUtils.js';
 
 /**
  * Check if a directory is a git repository
@@ -8,7 +9,8 @@ import { existsSync, readdirSync, mkdirSync } from 'fs';
  * @returns {boolean} True if it's a git repo
  */
 export function isGitRepo(repoPath) {
-  return existsSync(repoPath) && existsSync(`${repoPath}/.git`);
+  const p = expandPath(repoPath);
+  return existsSync(p) && existsSync(`${p}/.git`);
 }
 
 /**
@@ -17,8 +19,9 @@ export function isGitRepo(repoPath) {
  * @returns {boolean} True if empty or non-existent
  */
 export function isEmptyOrMissing(dirPath) {
-  if (!existsSync(dirPath)) return true;
-  const files = readdirSync(dirPath);
+  const p = expandPath(dirPath);
+  if (!existsSync(p)) return true;
+  const files = readdirSync(p);
   return files.length === 0;
 }
 
@@ -30,17 +33,18 @@ export function isEmptyOrMissing(dirPath) {
  * @returns {Promise<Object>} Result of the clone operation
  */
 export async function gitClone(repoUrl, repoPath, branch = 'main') {
-  console.log(`📦 Cloning ${repoUrl} to ${repoPath}...`);
+  const p = expandPath(repoPath);
+  console.log(`📦 Cloning ${repoUrl} to ${p}...`);
   
   try {
     // Create parent directory if it doesn't exist
-    const parentDir = repoPath.substring(0, repoPath.lastIndexOf('/'));
+    const parentDir = p.substring(0, p.lastIndexOf('/'));
     if (parentDir && !existsSync(parentDir)) {
       mkdirSync(parentDir, { recursive: true });
     }
     
     const git = simpleGit();
-    await git.clone(repoUrl, repoPath, ['--branch', branch]);
+    await git.clone(repoUrl, p, ['--branch', branch]);
     
     console.log(`✅ Cloned successfully to ${repoPath}`);
     return {
@@ -92,9 +96,10 @@ export async function ensureRepo(repoPath, repoUrl, branch = 'main') {
  * @returns {Promise<Object>} Result of the git pull operation
  */
 export async function gitPull(repoPath, branch = 'main') {
-  const git = simpleGit(repoPath);
+  const p = expandPath(repoPath);
+  const git = simpleGit(p);
   
-  console.log(`📥 Pulling ${branch} in ${repoPath}...`);
+  console.log(`📥 Pulling ${branch} in ${p}...`);
   
   try {
     // Fetch first to update remote refs
@@ -148,7 +153,8 @@ export async function gitPull(repoPath, branch = 'main') {
  * @returns {Promise<Object>} Status including whether updates are available
  */
 export async function checkForUpdates(repoPath, branch = 'main') {
-  const git = simpleGit(repoPath);
+  const p = expandPath(repoPath);
+  const git = simpleGit(p);
   
   try {
     // Fetch to update remote refs
@@ -180,7 +186,8 @@ export async function checkForUpdates(repoPath, branch = 'main') {
  * @returns {Promise<string>} Current commit hash
  */
 export async function getCurrentCommit(repoPath) {
-  const git = simpleGit(repoPath);
+  const p = expandPath(repoPath);
+  const git = simpleGit(p);
   const log = await git.log({ maxCount: 1 });
   return log.latest?.hash || null;
 }

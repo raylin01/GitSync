@@ -3,6 +3,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { existsSync } from 'fs';
 import { join } from 'path';
+import { expandPath } from './pathUtils.js';
 
 const execAsync = promisify(exec);
 
@@ -13,6 +14,9 @@ const execAsync = promisify(exec);
  * @returns {Promise<Object>} Result of the installation
  */
 export async function installDependencies(repoPath, depConfig) {
+  // Expand tilde in path
+  const expandedPath = expandPath(repoPath);
+  
   if (!depConfig || depConfig.type === 'none') {
     console.log('⏭️  Skipping dependency installation (type: none)');
     return { success: true, skipped: true };
@@ -24,13 +28,13 @@ export async function installDependencies(repoPath, depConfig) {
   try {
     switch (type) {
       case 'npm':
-        return await installNpm(repoPath);
+        return await installNpm(expandedPath);
       case 'bun':
-        return await installBun(repoPath);
+        return await installBun(expandedPath);
       case 'yarn':
-        return await installYarn(repoPath);
+        return await installYarn(expandedPath);
       case 'pip':
-        return await installPip(repoPath, venv);
+        return await installPip(expandedPath, venv);
       default:
         console.warn(`⚠️  Unknown dependency type: ${type}`);
         return { success: false, error: `Unknown dependency type: ${type}` };
