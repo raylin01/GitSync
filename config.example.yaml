@@ -24,6 +24,10 @@ repos:
       type: "npm"
       # venv: "auto"  # For pip - creates .venv if needed
     
+    # Optional build command (runs after install, before restart)
+    build:
+      command: "npm run build"
+    
     # Scripts to restart in TaskServer after deployment
     restartScripts:
       - "webServer"

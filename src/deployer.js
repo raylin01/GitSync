@@ -3,6 +3,10 @@ import { gitPull, ensureRepo } from './gitPull.js';
 import { installDependencies } from './dependencyInstaller.js';
 import { restartScript, addScript } from './taskServerClient.js';
 import { getTaskServerConfig } from './configLoader.js';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 /**
  * Run a full deployment for a repository
@@ -89,11 +93,36 @@ export async function deploy(config, repoConfig, triggerInfo = null) {
     console.log('\n⏭️  Step 2: Skipping dependency installation');
     results.steps.push({ step: 'install-deps', skipped: true });
   }
+
+  // Step 3: Run Build Command (New)
+  if (repoConfig.build && repoConfig.build.command) {
+    console.log('\n🔨 Step 3: Run Build Command');
+    console.log(`   Command: ${repoConfig.build.command}`);
+    
+    try {
+      const { stdout, stderr } = await execAsync(repoConfig.build.command, { cwd: repoConfig.path });
+      if (stdout) console.log(stdout.trim());
+      if (stderr) console.error(stderr.trim());
+      
+      console.log('✅ Build completed successfully');
+      results.steps.push({ step: 'build', success: true });
+    } catch (error) {
+      console.error(`❌ Build failed: ${error.message}`);
+      results.success = false;
+      results.error = `Build failed: ${error.message}`;
+      results.steps.push({ step: 'build', success: false, error: error.message });
+      console.error(`\n❌ DEPLOYMENT FAILED: ${results.error}`);
+      return results;
+    }
+  } else {
+    console.log('\n⏭️  Step 3: No build command configured');
+    results.steps.push({ step: 'build', skipped: true });
+  }
   
-  // Step 3: Register scripts in TaskServer (if configured and this is a fresh clone)
+  // Step 4: Register scripts in TaskServer (if configured and this is a fresh clone)
   const taskServerConfig = getTaskServerConfig(config, repoConfig);
   if (wasCloned && repoConfig.registerScripts && repoConfig.registerScripts.length > 0) {
-    console.log('\n📝 Step 3: Register Scripts in TaskServer');
+    console.log('\n📝 Step 4: Register Scripts in TaskServer');
     const registerResults = [];
     
     for (const scriptConfig of repoConfig.registerScripts) {
@@ -109,9 +138,9 @@ export async function deploy(config, repoConfig, triggerInfo = null) {
     results.steps.push({ step: 'register-scripts', results: registerResults });
   }
   
-  // Step 4: Restart scripts
+  // Step 5: Restart scripts
   if (repoConfig.restartScripts && repoConfig.restartScripts.length > 0) {
-    console.log('\n🔄 Step 4: Restart Scripts');
+    console.log('\n🔄 Step 5: Restart Scripts');
     
     const restartResults = [];
     for (const scriptName of repoConfig.restartScripts) {
@@ -124,7 +153,7 @@ export async function deploy(config, repoConfig, triggerInfo = null) {
     }
     results.steps.push({ step: 'restart-scripts', results: restartResults });
   } else {
-    console.log('\n⏭️  Step 4: No scripts configured to restart');
+    console.log('\n⏭️  Step 5: No scripts configured to restart');
     results.steps.push({ step: 'restart-scripts', skipped: true });
   }
   

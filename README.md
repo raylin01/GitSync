@@ -74,6 +74,11 @@ repos:
     branch: "main"
     dependencies:
       type: "npm"
+    
+    # Optional build command
+    build:
+      command: "npm run build"
+      
     restartScripts:
       - "myAppServer"
     
