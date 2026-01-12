@@ -24,9 +24,16 @@ repos:
       type: "npm"
       # venv: "auto"  # For pip - creates .venv if needed
     
-    # Optional build command (runs after install, before restart)
+    # Optional build command(s) - runs after install, before restart
+    # Single command:
+    # build: "npm run build"
+    # Multiple commands in different folders (monorepo):
     build:
-      command: "npm run build"
+      commands:
+        - command: "npm install && npm run build"
+          cwd: "client"
+        - command: "npm install && npm run build"
+          cwd: "server"
     
     # Scripts to restart in TaskServer after deployment
     restartScripts:

@@ -9,6 +9,48 @@ import { promisify } from 'util';
 const execAsync = promisify(exec);
 
 /**
+ * Get build commands from repo config (supports string, array, or objects with cwd)
+ * @param {Object} repoConfig - Repository configuration
+ * @returns {Array<{command: string, cwd?: string}>} Array of build command objects
+ */
+function getBuildCommands(repoConfig) {
+  if (!repoConfig.build) return [];
+  
+  const normalize = (item) => {
+    if (typeof item === 'string') {
+      return { command: item };
+    }
+    if (typeof item === 'object' && item.command) {
+      return { command: item.command, cwd: item.cwd || null };
+    }
+    return null;
+  };
+  
+  // Support: build: "npm run build" (single string shorthand)
+  if (typeof repoConfig.build === 'string') {
+    return [{ command: repoConfig.build }];
+  }
+  
+  // Support: build: { command: "npm run build", cwd: "client" } (single object)
+  if (repoConfig.build.command && typeof repoConfig.build.command === 'string') {
+    return [{ command: repoConfig.build.command, cwd: repoConfig.build.cwd || null }];
+  }
+  
+  // Support: build: { commands: [...] } (array of strings or objects)
+  if (Array.isArray(repoConfig.build.commands)) {
+    return repoConfig.build.commands.map(normalize).filter(Boolean);
+  }
+  
+  // Support: build: [...] (direct array)
+  if (Array.isArray(repoConfig.build)) {
+    return repoConfig.build.map(normalize).filter(Boolean);
+  }
+  
+  return [];
+}
+
+
+/**
  * Run a full deployment for a repository
  * @param {Object} config - Full configuration
  * @param {Object} repoConfig - Repository configuration
@@ -94,28 +136,45 @@ export async function deploy(config, repoConfig, triggerInfo = null) {
     results.steps.push({ step: 'install-deps', skipped: true });
   }
 
-  // Step 3: Run Build Command (New)
-  if (repoConfig.build && repoConfig.build.command) {
-    console.log('\n🔨 Step 3: Run Build Command');
-    console.log(`   Command: ${repoConfig.build.command}`);
+  // Step 3: Run Build Commands
+  const buildCommands = getBuildCommands(repoConfig);
+  if (buildCommands.length > 0) {
+    console.log(`\n🔨 Step 3: Run Build Commands (${buildCommands.length})`);
+    const buildResults = [];
     
-    try {
-      const { stdout, stderr } = await execAsync(repoConfig.build.command, { cwd: repoConfig.path });
-      if (stdout) console.log(stdout.trim());
-      if (stderr) console.error(stderr.trim());
+    for (const buildCmd of buildCommands) {
+      // Resolve working directory (relative to repo path or absolute)
+      let workDir = repoConfig.path;
+      if (buildCmd.cwd) {
+        workDir = buildCmd.cwd.startsWith('/') 
+          ? buildCmd.cwd 
+          : `${repoConfig.path}/${buildCmd.cwd}`;
+      }
       
-      console.log('✅ Build completed successfully');
-      results.steps.push({ step: 'build', success: true });
-    } catch (error) {
-      console.error(`❌ Build failed: ${error.message}`);
-      results.success = false;
-      results.error = `Build failed: ${error.message}`;
-      results.steps.push({ step: 'build', success: false, error: error.message });
-      console.error(`\n❌ DEPLOYMENT FAILED: ${results.error}`);
-      return results;
+      const displayPath = buildCmd.cwd ? ` (in ${buildCmd.cwd})` : '';
+      console.log(`   Running: ${buildCmd.command}${displayPath}`);
+      
+      try {
+        const { stdout, stderr } = await execAsync(buildCmd.command, { cwd: workDir });
+        if (stdout) console.log(stdout.trim());
+        if (stderr) console.error(stderr.trim());
+        buildResults.push({ command: buildCmd.command, cwd: buildCmd.cwd, success: true });
+        console.log(`   ✅ Done: ${buildCmd.command}`);
+      } catch (error) {
+        console.error(`   ❌ Failed: ${buildCmd.command} - ${error.message}`);
+        results.success = false;
+        results.error = `Build failed: ${buildCmd.command} - ${error.message}`;
+        buildResults.push({ command: buildCmd.command, cwd: buildCmd.cwd, success: false, error: error.message });
+        results.steps.push({ step: 'build', results: buildResults });
+        console.error(`\n❌ DEPLOYMENT FAILED: ${results.error}`);
+        return results;
+      }
     }
+    
+    console.log('✅ All build commands completed');
+    results.steps.push({ step: 'build', results: buildResults });
   } else {
-    console.log('\n⏭️  Step 3: No build command configured');
+    console.log('\n⏭️  Step 3: No build commands configured');
     results.steps.push({ step: 'build', skipped: true });
   }
   
