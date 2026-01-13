@@ -54,6 +54,28 @@ bun start
 bun run dev
 ```
 
+## Managing TaskServer with GitSync
+GitSync can also update and restart its host TaskServer.
+
+**Configuration:**
+Add this to your `repos` list in `config.yaml`:
+```yaml
+- name: "taskserver"
+  path: "/path/to/TaskServer"
+  branch: "main"
+  dependencies:
+    type: "npm"
+  restartScripts:
+    - "taskserver"
+```
+
+**Important Requirement:**
+For this to work, TaskServer **must** be running under PM2 with the name `taskserver`.
+```bash
+pm2 start server.js --name taskserver
+```
+If you run it with `node server.js` or `npm start`, it cannot restart itself via the API.
+
 ## Configuration
 
 See `config.example.yaml` for all available options.
