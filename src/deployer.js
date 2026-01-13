@@ -4,7 +4,9 @@ import { installDependencies } from './dependencyInstaller.js';
 import { restartScript, addScript } from './taskServerClient.js';
 import { getTaskServerConfig } from './configLoader.js';
 import { exec } from 'child_process';
+import { join } from 'path';
 import { promisify } from 'util';
+import { expandPath } from './pathUtils.js';
 
 const execAsync = promisify(exec);
 
@@ -144,11 +146,11 @@ export async function deploy(config, repoConfig, triggerInfo = null) {
     
     for (const buildCmd of buildCommands) {
       // Resolve working directory (relative to repo path or absolute)
-      let workDir = repoConfig.path;
+      let workDir = expandPath(repoConfig.path);
       if (buildCmd.cwd) {
         workDir = buildCmd.cwd.startsWith('/') 
-          ? buildCmd.cwd 
-          : `${repoConfig.path}/${buildCmd.cwd}`;
+          ? expandPath(buildCmd.cwd)
+          : join(workDir, buildCmd.cwd);
       }
       
       const displayPath = buildCmd.cwd ? ` (in ${buildCmd.cwd})` : '';

@@ -71,9 +71,13 @@ Add this to your `repos` list in `config.yaml`:
 
 **Important Requirement:**
 For this to work, TaskServer **must** be running under PM2 with the name `taskserver`.
-```bash
-pm2 start server.js --name taskserver
-```
+1. Install PM2 globally (recommended): `npm install -g pm2`
+2. Start TaskServer:
+   ```bash
+   pm2 start server.js --name taskserver
+   ```
+   *(Or use `npx pm2 start ...` if you prefer not to install globally)*
+
 If you run it with `node server.js` or `npm start`, it cannot restart itself via the API.
 
 ## Configuration
