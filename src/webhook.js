@@ -51,6 +51,12 @@ export function parseGitHubPush(body) {
     branch,
     repository: body.repository?.name || null,
     fullName: body.repository?.full_name || null,
+    urls: [
+      body.repository?.html_url,
+      body.repository?.clone_url,
+      body.repository?.ssh_url,
+      body.repository?.url
+    ].filter(Boolean),
     commits: body.commits?.length || 0,
     pusher: body.pusher?.name || null,
     headCommit: body.head_commit?.id || null,
@@ -72,6 +78,14 @@ export function parseGitLabPush(body) {
     branch,
     repository: body.project?.name || body.repository?.name || null,
     fullName: body.project?.path_with_namespace || null,
+    urls: [
+      body.project?.web_url,
+      body.project?.git_http_url,
+      body.project?.git_ssh_url,
+      body.repository?.homepage,
+      body.repository?.git_http_url,
+      body.repository?.git_ssh_url
+    ].filter(Boolean),
     commits: body.total_commits_count || body.commits?.length || 0,
     pusher: body.user_name || null,
     headCommit: body.checkout_sha || body.after || null,
@@ -93,10 +107,25 @@ export function parseGiteaPush(body) {
     branch,
     repository: body.repository?.name || null,
     fullName: body.repository?.full_name || null,
+    urls: [
+      body.repository?.html_url,
+      body.repository?.clone_url,
+      body.repository?.ssh_url
+    ].filter(Boolean),
     commits: body.commits?.length || 0,
     pusher: body.pusher?.login || body.pusher?.username || null,
     headCommit: body.after || null,
   };
+}
+
+/**
+ * Normalize a Git URL for comparison (removes .git suffix and trailing slash)
+ * @param {string} url 
+ * @returns {string}
+ */
+function normalizeUrl(url) {
+  if (!url) return '';
+  return url.replace(/\.git$/, '').replace(/\/$/, '').toLowerCase();
 }
 
 /**
@@ -179,10 +208,17 @@ export function createWebhookServer(config, onPush) {
         const matchingRepo = config.repos.find(r => {
           // Match by branch
           if (r.branch !== pushInfo.branch) return false;
+          
           // Match by name (flexible matching)
           if (r.name === pushInfo.repository) return true;
           if (r.name === pushInfo.fullName) return true;
-          // Could also match by path if we had repo URL in config
+          
+          // Match by repoUrl
+          if (r.repoUrl && pushInfo.urls && pushInfo.urls.length > 0) {
+            const normalizedConfigUrl = normalizeUrl(r.repoUrl);
+            return pushInfo.urls.some(url => normalizeUrl(url) === normalizedConfigUrl);
+          }
+          
           return false;
         });
         
