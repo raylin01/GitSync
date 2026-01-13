@@ -9,7 +9,7 @@ export async function restartScript(scriptName, taskServerConfig) {
   const { url, apiKey } = taskServerConfig;
   const endpoint = `${url}/api/restart-script/${encodeURIComponent(scriptName)}`;
   
-  console.log(`🔄 Restarting script: ${scriptName}...`);
+  console.log(`Restarting script: ${scriptName}...`);
   
   try {
     const headers = {
@@ -28,14 +28,14 @@ export async function restartScript(scriptName, taskServerConfig) {
     const data = await response.json();
     
     if (response.ok && data.success) {
-      console.log(`✅ Script '${scriptName}' restarted successfully`);
+      console.log(`Script '${scriptName}' restarted successfully`);
       return { success: true, message: data.message, logFile: data.logFile };
     } else {
-      console.error(`❌ Failed to restart '${scriptName}': ${data.error || 'Unknown error'}`);
+      console.error(`Failed to restart '${scriptName}': ${data.error || 'Unknown error'}`);
       return { success: false, error: data.error || 'Unknown error' };
     }
   } catch (error) {
-    console.error(`❌ TaskServer request failed: ${error.message}`);
+    console.error(`TaskServer request failed: ${error.message}`);
     return { success: false, error: error.message };
   }
 }
@@ -50,7 +50,7 @@ export async function stopScript(scriptName, taskServerConfig) {
   const { url, apiKey } = taskServerConfig;
   const endpoint = `${url}/api/stop-script/${encodeURIComponent(scriptName)}`;
   
-  console.log(`⏹️  Stopping script: ${scriptName}...`);
+  console.log(`Stopping script: ${scriptName}...`);
   
   try {
     const headers = { 'Content-Type': 'application/json' };
@@ -60,14 +60,14 @@ export async function stopScript(scriptName, taskServerConfig) {
     const data = await response.json();
     
     if (response.ok && data.success) {
-      console.log(`✅ Script '${scriptName}' stopped`);
+      console.log(`Script '${scriptName}' stopped`);
       return { success: true, message: data.message };
     } else {
-      console.error(`❌ Failed to stop '${scriptName}': ${data.error}`);
+      console.error(`Failed to stop '${scriptName}': ${data.error}`);
       return { success: false, error: data.error };
     }
   } catch (error) {
-    console.error(`❌ TaskServer request failed: ${error.message}`);
+    console.error(`TaskServer request failed: ${error.message}`);
     return { success: false, error: error.message };
   }
 }
@@ -82,7 +82,7 @@ export async function startScript(scriptName, taskServerConfig) {
   const { url, apiKey } = taskServerConfig;
   const endpoint = `${url}/api/start-script/${encodeURIComponent(scriptName)}`;
   
-  console.log(`▶️  Starting script: ${scriptName}...`);
+  console.log(`Starting script: ${scriptName}...`);
   
   try {
     const headers = { 'Content-Type': 'application/json' };
@@ -92,14 +92,14 @@ export async function startScript(scriptName, taskServerConfig) {
     const data = await response.json();
     
     if (response.ok && data.success) {
-      console.log(`✅ Script '${scriptName}' started`);
+      console.log(`Script '${scriptName}' started`);
       return { success: true, message: data.message };
     } else {
-      console.error(`❌ Failed to start '${scriptName}': ${data.error}`);
+      console.error(`Failed to start '${scriptName}': ${data.error}`);
       return { success: false, error: data.error };
     }
   } catch (error) {
-    console.error(`❌ TaskServer request failed: ${error.message}`);
+    console.error(`TaskServer request failed: ${error.message}`);
     return { success: false, error: error.message };
   }
 }
@@ -154,7 +154,7 @@ export async function addScript(scriptConfig, taskServerConfig) {
   const { url, apiKey } = taskServerConfig;
   const endpoint = `${url}/api/add-script`;
   
-  console.log(`➕ Adding script: ${scriptConfig.name}...`);
+  console.log(`Adding script: ${scriptConfig.name}...`);
   
   try {
     const headers = { 'Content-Type': 'application/json' };
@@ -169,14 +169,14 @@ export async function addScript(scriptConfig, taskServerConfig) {
     const data = await response.json();
     
     if (response.ok && data.success) {
-      console.log(`✅ Script '${scriptConfig.name}' added successfully`);
+      console.log(`Script '${scriptConfig.name}' added successfully`);
       return { success: true, message: data.message };
     } else {
-      console.error(`❌ Failed to add '${scriptConfig.name}': ${data.error || 'Unknown error'}`);
+      console.error(`Failed to add '${scriptConfig.name}': ${data.error || 'Unknown error'}`);
       return { success: false, error: data.error || 'Unknown error' };
     }
   } catch (error) {
-    console.error(`❌ TaskServer request failed: ${error.message}`);
+    console.error(`TaskServer request failed: ${error.message}`);
     return { success: false, error: error.message };
   }
 }

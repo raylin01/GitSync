@@ -1,7 +1,7 @@
 // Deployer - orchestrates the deployment process
 import { gitPull, ensureRepo } from './gitPull.js';
 import { installDependencies } from './dependencyInstaller.js';
-import { restartScript, addScript } from './taskServerClient.js';
+import { restartScript, addScript, stopScript } from './taskServerClient.js';
 import { getTaskServerConfig } from './configLoader.js';
 import { exec } from 'child_process';
 import { join } from 'path';
@@ -70,7 +70,7 @@ export async function deploy(config, repoConfig, triggerInfo = null) {
   };
   
   console.log(`\n${'='.repeat(60)}`);
-  console.log(`🚀 DEPLOYING: ${repoConfig.name}`);
+  console.log(`DEPLOYING: ${repoConfig.name}`);
   console.log(`   Branch: ${repoConfig.branch}`);
   console.log(`   Path: ${repoConfig.path}`);
   if (repoConfig.repoUrl) {
@@ -83,14 +83,14 @@ export async function deploy(config, repoConfig, triggerInfo = null) {
   
   // Step 0: Ensure repo exists (clone if needed)
   if (repoConfig.repoUrl) {
-    console.log('\n📂 Step 0: Ensure Repository Exists');
+    console.log('\nStep 0: Ensure Repository Exists');
     const ensureResult = await ensureRepo(repoConfig.path, repoConfig.repoUrl, repoConfig.branch);
     results.steps.push({ step: 'ensure-repo', ...ensureResult });
     
     if (!ensureResult.success) {
       results.success = false;
       results.error = `Failed to ensure repo: ${ensureResult.error}`;
-      console.error(`\n❌ DEPLOYMENT FAILED: ${results.error}`);
+      console.error(`\nDEPLOYMENT FAILED: ${results.error}`);
       return results;
     }
     
@@ -101,21 +101,21 @@ export async function deploy(config, repoConfig, triggerInfo = null) {
   }
   
   // Step 1: Git pull
-  console.log('\n📥 Step 1: Git Pull');
+  console.log('\nStep 1: Git Pull');
   const pullResult = await gitPull(repoConfig.path, repoConfig.branch);
   results.steps.push({ step: 'git-pull', ...pullResult });
   
   if (!pullResult.success) {
     results.success = false;
     results.error = `Git pull failed: ${pullResult.message}`;
-    console.error(`\n❌ DEPLOYMENT FAILED: ${results.error}`);
+    console.error(`\nDEPLOYMENT FAILED: ${results.error}`);
     return results;
   }
   
   // Check if we should skip rest (no changes and not a fresh clone)
   const wasCloned = results.steps.find(s => s.step === 'ensure-repo')?.cloned;
   if (!pullResult.changed && !wasCloned) {
-    console.log('\n✅ No changes detected, skipping dependency install and restart');
+    console.log('\nNo changes detected, skipping dependency install and restart');
     results.skipped = true;
     results.duration = Date.now() - startTime;
     return results;
@@ -123,25 +123,42 @@ export async function deploy(config, repoConfig, triggerInfo = null) {
   
   // Step 2: Install dependencies
   if (repoConfig.dependencies && repoConfig.dependencies.type !== 'none') {
-    console.log('\n📦 Step 2: Install Dependencies');
+    console.log('\nStep 2: Install Dependencies');
     const installResult = await installDependencies(repoConfig.path, repoConfig.dependencies);
     results.steps.push({ step: 'install-deps', ...installResult });
     
     if (!installResult.success && !installResult.skipped) {
       results.success = false;
       results.error = `Dependency installation failed: ${installResult.error}`;
-      console.error(`\n❌ DEPLOYMENT FAILED: ${results.error}`);
+      console.error(`\nDEPLOYMENT FAILED: ${results.error}`);
       return results;
     }
   } else {
-    console.log('\n⏭️  Step 2: Skipping dependency installation');
+    console.log('\nStep 2: Skipping dependency installation');
     results.steps.push({ step: 'install-deps', skipped: true });
   }
 
-  // Step 3: Run Build Commands
+  // Pre-load task server config for stop/start operations
+  const taskServerConfig = getTaskServerConfig(config, repoConfig);
+
+  // Calculate build commands early to decide if we need to stop scripts
   const buildCommands = getBuildCommands(repoConfig);
+
+  // Step 2.5: Stop Scripts (Prevent file/port locks during build)
+  // Only runs if we are about to build AND there are build commands
+  if (repoConfig.restartScripts && repoConfig.restartScripts.length > 0 && buildCommands.length > 0) {
+    console.log('\nStep 2.5: Stop Scripts (Pre-build)');
+    
+    for (const scriptName of repoConfig.restartScripts) {
+      // We don't fail deployment if stop fails (script might not be running)
+      // logging is handled inside stopScript
+      await stopScript(scriptName, taskServerConfig);
+    }
+  }
+
+  // Step 3: Run Build Commands
   if (buildCommands.length > 0) {
-    console.log(`\n🔨 Step 3: Run Build Commands (${buildCommands.length})`);
+    console.log(`\nStep 3: Run Build Commands (${buildCommands.length})`);
     const buildResults = [];
     
     for (const buildCmd of buildCommands) {
@@ -161,29 +178,29 @@ export async function deploy(config, repoConfig, triggerInfo = null) {
         if (stdout) console.log(stdout.trim());
         if (stderr) console.error(stderr.trim());
         buildResults.push({ command: buildCmd.command, cwd: buildCmd.cwd, success: true });
-        console.log(`   ✅ Done: ${buildCmd.command}`);
+        console.log(`   Done: ${buildCmd.command}`);
       } catch (error) {
-        console.error(`   ❌ Failed: ${buildCmd.command} - ${error.message}`);
+        console.error(`   Failed: ${buildCmd.command} - ${error.message}`);
         results.success = false;
         results.error = `Build failed: ${buildCmd.command} - ${error.message}`;
         buildResults.push({ command: buildCmd.command, cwd: buildCmd.cwd, success: false, error: error.message });
         results.steps.push({ step: 'build', results: buildResults });
-        console.error(`\n❌ DEPLOYMENT FAILED: ${results.error}`);
+        console.error(`\nDEPLOYMENT FAILED: ${results.error}`);
         return results;
       }
     }
     
-    console.log('✅ All build commands completed');
+    console.log('All build commands completed');
     results.steps.push({ step: 'build', results: buildResults });
   } else {
-    console.log('\n⏭️  Step 3: No build commands configured');
+    console.log('\nStep 3: No build commands configured');
     results.steps.push({ step: 'build', skipped: true });
   }
   
   // Step 4: Register scripts in TaskServer (if configured and this is a fresh clone)
-  const taskServerConfig = getTaskServerConfig(config, repoConfig);
+  // Config loaded earlier
   if (wasCloned && repoConfig.registerScripts && repoConfig.registerScripts.length > 0) {
-    console.log('\n📝 Step 4: Register Scripts in TaskServer');
+    console.log('\nStep 4: Register Scripts in TaskServer');
     const registerResults = [];
     
     for (const scriptConfig of repoConfig.registerScripts) {
@@ -191,9 +208,9 @@ export async function deploy(config, repoConfig, triggerInfo = null) {
       registerResults.push({ script: scriptConfig.name, ...addResult });
       
       if (addResult.success) {
-        console.log(`   ✅ Registered: ${scriptConfig.name}`);
+        console.log(`   Registered: ${scriptConfig.name}`);
       } else {
-        console.warn(`   ⚠️  Failed to register ${scriptConfig.name}: ${addResult.error}`);
+        console.warn(`   WARNING: Failed to register ${scriptConfig.name}: ${addResult.error}`);
       }
     }
     results.steps.push({ step: 'register-scripts', results: registerResults });
@@ -201,7 +218,7 @@ export async function deploy(config, repoConfig, triggerInfo = null) {
   
   // Step 5: Restart scripts
   if (repoConfig.restartScripts && repoConfig.restartScripts.length > 0) {
-    console.log('\n🔄 Step 5: Restart Scripts');
+    console.log('\nStep 5: Restart Scripts');
     
     const restartResults = [];
     for (const scriptName of repoConfig.restartScripts) {
@@ -209,19 +226,19 @@ export async function deploy(config, repoConfig, triggerInfo = null) {
       restartResults.push({ script: scriptName, ...restartResult });
       
       if (!restartResult.success) {
-        console.warn(`⚠️  Failed to restart ${scriptName}: ${restartResult.error}`);
+        console.warn(`WARNING: Failed to restart ${scriptName}: ${restartResult.error}`);
       }
     }
     results.steps.push({ step: 'restart-scripts', results: restartResults });
   } else {
-    console.log('\n⏭️  Step 5: No scripts configured to restart');
+    console.log('\nStep 5: No scripts configured to restart');
     results.steps.push({ step: 'restart-scripts', skipped: true });
   }
   
   results.duration = Date.now() - startTime;
   
   console.log(`\n${'='.repeat(60)}`);
-  console.log(`✅ DEPLOYMENT COMPLETE: ${repoConfig.name}`);
+  console.log(`DEPLOYMENT COMPLETE: ${repoConfig.name}`);
   console.log(`   Duration: ${(results.duration / 1000).toFixed(2)}s`);
   console.log(`   Files changed: ${pullResult.files?.length || 0}`);
   if (wasCloned) console.log('   (New repo - fully set up)');
