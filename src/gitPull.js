@@ -114,7 +114,7 @@ export async function gitPull(repoPath, branch = 'main') {
     
     // Pull changes with rebase and autostash
     console.log('   (Using --rebase --autostash to preserve local changes)');
-    const pullResult = await git.pull('origin', branch, {'--rebase': 'true', '--autostash': 'true'});
+    const pullResult = await git.pull('origin', branch, {'--rebase': null, '--autostash': null});
     
     if (pullResult.summary.changes === 0 && pullResult.summary.insertions === 0 && pullResult.summary.deletions === 0) {
       console.log('✅ Already up to date');
