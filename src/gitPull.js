@@ -1,5 +1,5 @@
 // Git operations - clone, pull, fetch, check for changes
-import simpleGit from 'simple-git';
+import { simpleGit } from 'simple-git';
 import { existsSync, readdirSync, mkdirSync } from 'fs';
 import { expandPath } from './pathUtils.js';
 
